@@ -337,11 +337,39 @@ func introspectionConvertArgList(args []IntrospectionInputValue) ast.ArgumentDef
 
 	// we need to add each argument to the field
 	for _, argument := range args {
-		result = append(result, &ast.ArgumentDefinition{
+		definition := &ast.ArgumentDefinition{
 			Name:        argument.Name,
 			Description: argument.Description,
 			Type:        introspectionUnmarshalTypeRef(&argument.Type),
-		})
+		}
+
+		// This is the fix for SUP-2864, for the gateway startup failure:
+		// while gateway setup: while creating gateway: conflict in argument definitions for directive defer: one is a list the other isn't
+		if argument.DefaultValue != "" {
+			kindValue := ast.Variable
+			switch argument.Type.Name {
+			case "Int":
+				kindValue = ast.IntValue
+			case "Float":
+				kindValue = ast.FloatValue
+			case "String":
+				kindValue = ast.StringValue
+			case "Block":
+				kindValue = ast.BlockValue
+			case "Boolean":
+				kindValue = ast.BooleanValue
+			case "Null":
+				kindValue = ast.NullValue
+			case "Enum":
+				kindValue = ast.EnumValue
+			case "List":
+				kindValue = ast.ListValue
+			case "Object":
+				kindValue = ast.ObjectValue
+			}
+			definition.DefaultValue = &ast.Value{Raw: argument.DefaultValue, Kind: kindValue}
+		}
+		result = append(result, definition)
 	}
 
 	return result
